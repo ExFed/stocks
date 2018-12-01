@@ -4,7 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="utf-8">
     <title>Stocks!</title>
-    <link rel="icon" href="https://d3v3cbxkdlyonc.cloudfront.net/stocks/favicon.ico">
+    <link rel="icon" href="favicon.ico">
     <meta name="description" content="A free, lightweight, blazing-fast page to get stock quotes using the IEX API">
 
     <style>
@@ -13,25 +13,46 @@
           "Oxygen", "Ubuntu", "Helvetica Neue", Arial, sans-serif;
       }
       table { font-family: Courier, monospace; }
+      body {
+        background-color: #224;
+        color: whitesmoke;
+      }
+      a {
+        color: lightblue;
+      }
+      h2 {
+        font-size: 1.0em;
+      }
+      summary {
+        display: inline;
+      }
       .stocks-container {
         margin-bottom: 1.5em;
         width: 100%;
-        max-width: 600px;
+        column-width: 500px;
       }
-      .stocks-container a { text-decoration: none; }
+      .stocks-container a {
+        text-decoration: none;
+        text-shadow: 1px 1px black;
+      }
+      .stocks-container>div {
+        width: 500px;
+        page-break-inside: avoid;
+      }
       table {
         border-collapse: collapse;
         width: 100%;
-        font-size: 1.1em;
+        font-size: 0.75em;
       }
       .stock-symbol {
-        width: 12%;
+        width: 10%;
         padding: 2px 4px 2px 0px;
       }
-      .stock-price, .stock-change, .stock-change-pct, .stock-mkt-cap {
-        width: 22%;
+      .stock-price, .stock-change, .stock-change-pct, .stock-mkt-cap, .stock-volume, .stock-volume-avg {
+        width: 15%;
         text-align: right;
         padding: 2px 4px;
+        text-shadow: 1px 1px #224;
       }
       @media (max-width: 576px) {
         table { margin-bottom: 3em; }
@@ -63,6 +84,21 @@
     <script>
       'use strict';
 
+      const FILTERS = [
+        'latestPrice',
+        'change',
+        'changePercent',
+        'marketCap',
+        'latestVolume',
+        'avgTotalVolume',
+        'latestUpdate',
+        'openTime',
+        'closeTime',
+        'week52High',
+        'week52Low',
+        'beta'
+      ];
+
       const DEFAULT_PORTFOLIOS = [
         {'name': 'Market ETFs', 'symbols': ['SPY', 'DIA', 'QQQ', 'IWM']},
         {'name': 'Sector ETFs', 'symbols': ['XLF', 'XLK', 'XLC', 'XLV', 'XLP', 'XLY', 'XLE', 'XLB', 'XLI', 'XLU', 'XLRE']},
@@ -77,6 +113,7 @@
 
       const PORTFOLIOS = portfoliosFromQueryParams() || DEFAULT_PORTFOLIOS;
       const REFRESH_SECONDS = 10;
+      const DAY_LENGTH = new Date().setHours(16, 0, 0, 0) - new Date().setHours(9, 30, 0, 0);
       const BATCH_SIZE = 100;
       const BASE_URL = 'https://api.iextrading.com/1.0/stock/market/batch';
 
@@ -100,12 +137,14 @@
                 <th class="stock-change">Change</th>
                 <th class="stock-change-pct">Change%</th>
                 <th class="stock-mkt-cap">Mkt Cap</th>
+                <th class="stock-volume">Volume</th>
+                <th class="stock-volume-avg">Proj Vol%</th>
               </tr>
             </thead>
           `
         }
 
-        let tableBodyHtml = portfolio.symbols.map(symbol => {
+        let tableBodyHtml = portfolio.symbols.sort().map(symbol => {
           symbol = symbol.toUpperCase();
           symbols.push(symbol);
 
@@ -116,6 +155,8 @@
               <td class="stock-change"></td>
               <td class="stock-change-pct"></td>
               <td class="stock-mkt-cap"></td>
+              <td class="stock-volume"></td>
+              <td class="stock-volume-avg"></td>
             </tr>
           `
 
@@ -146,9 +187,9 @@
       }
 
       function updateDataForBatch(symbols, addTitle) {
-        let filters = ['latestPrice', 'change', 'changePercent', 'marketCap'];
+        let filters = FILTERS.slice();
         if (addTitle) filters.push('companyName');
-        let url = `${BASE_URL}?types=quote&symbols=${symbols.join(',')}&filter=${filters.join(',')}`;
+        let url = `${BASE_URL}?types=quote,stats&symbols=${symbols.join(',')}&filter=${filters.join(',')}`;
 
         fetch(url).then(response => response.json()).then(json => {
           symbols.forEach(symbol => {
@@ -157,10 +198,13 @@
 
             let formattedPrice = formatQuote(data.quote.latestPrice);
             let formattedChange = data.quote.change.toLocaleString('en', {'minimumFractionDigits': 2});
-            let formattedChangePercent = (data.quote.changePercent * 100).toFixed(1) + '%';
+            let formattedChangePercent = (data.quote.changePercent * 100).toFixed(2) + '%';
             let formattedMarketCap = formatMarketCap(data.quote.marketCap);
-            let rgbColor = data.quote.changePercent > 0 ? '0,255,0' : '255,0,0';
-            let rgbOpacity = Math.min(Math.abs(data.quote.changePercent) * 20, 1);
+            let formattedVolume = formatVolume(data.quote.latestVolume);
+            let formattedProjVolPercent = formatProjVolPct(data.quote);
+            let rgbColor = data.quote.change > 0 ? '0,220,0' : '220,0,0';
+            let beta = data.stats.beta != 0 ? data.stats.beta : 1.0;
+            let rgbOpacity = Math.min(Math.abs(data.quote.changePercent * 20/ beta), 1);
 
             document.querySelectorAll(`[data-symbol="${symbol}"] .stock-price`).forEach(e => {
               e.innerHTML = formattedPrice;
@@ -179,6 +223,16 @@
 
             document.querySelectorAll(`[data-symbol="${symbol}"] .stock-mkt-cap`).forEach(e => {
               e.innerHTML = formattedMarketCap;
+              e.setAttribute('style', `background-color: rgba(${rgbColor}, ${rgbOpacity})`);
+            });
+
+            document.querySelectorAll(`[data-symbol="${symbol}"] .stock-volume`).forEach(e => {
+              e.innerHTML = formattedVolume;
+              e.setAttribute('style', `background-color: rgba(${rgbColor}, ${rgbOpacity})`);
+            });
+
+            document.querySelectorAll(`[data-symbol="${symbol}"] .stock-volume-avg`).forEach(e => {
+              e.innerHTML = formattedProjVolPercent;
               e.setAttribute('style', `background-color: rgba(${rgbColor}, ${rgbOpacity})`);
             });
 
@@ -233,6 +287,34 @@
         let digits = value < 10 ? 1 : 0;
 
         return '$' + value.toFixed(digits) + suffix;
+      }
+
+      function formatVolume(volume) {
+        let value, suffix;
+        if (volume >= 1e12) {
+          value = volume / 1e12;
+          suffix = 'T';
+        } else if (volume >= 1e9) {
+          value = volume / 1e9;
+          suffix = 'B';
+        } else if (volume >= 1e6) {
+          value = volume / 1e6;
+          suffix = 'M';
+        } else {
+          value = volume / 1e3;
+          suffix = 'k';
+        }
+
+        let digits = value < 10 ? 1 : 0;
+
+        return value.toFixed(digits) + suffix;
+      }
+
+      function formatProjVolPct(quote) {
+        let dayRatio = (quote.latestUpdate - quote.openTime) / DAY_LENGTH;
+        let volumeRatio = (quote.latestVolume - quote.avgTotalVolume) / quote.avgTotalVolume;
+        let projectedVolume = volumeRatio / dayRatio;
+        return projectedVolume.toFixed(2) + '%';
       }
     </script>
   </body>
