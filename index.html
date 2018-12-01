@@ -38,6 +38,7 @@
       .stocks-container>div {
         width: 500px;
         page-break-inside: avoid;
+        overflow: auto;
       }
       table {
         border-collapse: collapse;
@@ -56,13 +57,14 @@
       }
       @media (max-width: 576px) {
         table { margin-bottom: 3em; }
-        .stock-mkt-cap { display: none; }
+        .stock-mkt-cap, .stock-volume-avg { display: none; }
         .stock-symbol { width: 16%; }
-        .stock-price, .stock-change, .stock-change-pct { width: 28%; }
+        .stock-price, .stock-change, .stock-change-pct, .stock-volume { width: 21%; }
         td.stock-symbol, td.stock-price, td.stock-change, td.stock-change-pct {
-          padding-top: 1em;
-          padding-bottom: 1em;
+          padding-top: 0.67em;
+          padding-bottom: 0.67em;
         }
+        .stocks-container > div { width: initial; }
       }
       summary:hover { cursor: pointer; }
       summary::-webkit-details-marker { display: none; }
