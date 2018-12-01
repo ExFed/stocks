@@ -105,9 +105,9 @@
         {'name': 'Market ETFs', 'symbols': ['SPY', 'DIA', 'QQQ', 'IWM']},
         {'name': 'Sector ETFs', 'symbols': ['XLF', 'XLK', 'XLC', 'XLV', 'XLP', 'XLY', 'XLE', 'XLB', 'XLI', 'XLU', 'XLRE']},
         {'name': 'Banks', 'symbols': ['GS', 'MS', 'JPM', 'WFC', 'C', 'BAC', 'BCS', 'DB', 'CS', 'RBS']},
-        {'name': 'Tech', 'symbols': ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'FB', 'TWTR', 'NFLX', 'SNAP', 'SPOT', 'DBX', 'SQ', 'BABA', 'INTC', 'AMD', 'NVDA', 'ORCL']},
+        {'name': 'Tech', 'symbols': ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'FB', 'TWTR', 'NFLX', 'SNAP', 'SPOT', 'DBX', 'SQ', 'SFIX', 'BABA', 'INTC', 'AMD', 'NVDA', 'ORCL']},
         {'name': 'Bond ETFs', 'symbols': ['BND', 'BIV', 'JNK']},
-        {'name': 'Other ETFs', 'symbols': ['VOO', 'VTI', 'VGK', 'VPL', 'VWO', 'VDE', 'XOP', 'VFH', 'VHT', 'VIG', 'VYM', 'VAW', 'REM', 'XHB', 'GLD', 'SHV', 'FLOT', 'MJ']},
+        {'name': 'Other ETFs', 'symbols': ['VOO', 'VTI', 'VGK', 'VPL', 'VWO', 'VDE', 'XOP', 'VFH', 'VHT', 'VIG', 'VYM', 'VAW', 'REM', 'XHB', 'XRT', 'GLD', 'SHV', 'FLOT', 'BKLN', 'MJ']},
         {'name': 'Mortgage REITs', 'symbols': ['EFC', 'EARN', 'NLY', 'AGNC', 'CIM', 'TWO', 'NRZ']},
         {'name': 'Autos', 'symbols': ['F', 'GM', 'FCAU', 'TM', 'HMC', 'TSLA']},
         {'name': 'BigCos', 'symbols': ['XOM', 'WMT', 'JNJ', 'GE', 'T', 'KO', 'DIS', 'MCD', 'PG']}
@@ -118,8 +118,10 @@
       const DAY_LENGTH = new Date().setHours(16, 0, 0, 0) - new Date().setHours(9, 30, 0, 0);
       const BATCH_SIZE = 100;
       const BASE_URL = 'https://api.iextrading.com/1.0/stock/market/batch';
+      const FAVICON_SYMBOL = 'SPY';
+      const FAVICON_BASE_URL = 'https://d3v3cbxkdlyonc.cloudfront.net/stocks';
 
-      let symbols = [];
+      let symbols = [FAVICON_SYMBOL];
       let containerDiv = document.querySelector('.stocks-container');
       let updatedDiv = document.querySelector('.updated-timestamp');
 
@@ -243,6 +245,10 @@
                 e.setAttribute('title', data.quote.companyName);
               });
             }
+
+            if (symbol === FAVICON_SYMBOL) {
+              updateFavicon(data.quote);
+            }
           });
         });
       }
@@ -317,6 +323,16 @@
         let volumeRatio = (quote.latestVolume - quote.avgTotalVolume) / quote.avgTotalVolume;
         let projectedVolume = volumeRatio / dayRatio;
         return projectedVolume.toFixed(2) + '%';
+      }
+
+      function updateFavicon(quote) {
+        let favicon = document.querySelector('link[rel="icon"]');
+        let path = quote.change < 0 ? 'favicon_down.ico' : 'favicon.ico';
+        let href = `${FAVICON_BASE_URL}/${path}`;
+
+        if (favicon.getAttribute('href') !== href) {
+          favicon.setAttribute('href', href);
+        }
       }
     </script>
   </body>
